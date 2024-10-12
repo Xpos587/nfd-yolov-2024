@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['aeroplane', 'helikopter']
+
+roboflow:
+  workspace: cp-oct-2024
+  project: cp-oct-2024
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/cp-oct-2024/cp-oct-2024/dataset/3
