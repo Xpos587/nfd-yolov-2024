@@ -10,8 +10,7 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-    - super-gradients
-    - opencv-python
-    - numpy
-    - moviepy
-    - ipykernel
+      - super-gradients
+      - opencv-python
+      - numpy
+      - ipykernel
