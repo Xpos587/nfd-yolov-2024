@@ -86,3 +86,16 @@ def process_video_directory(
             total_frames += future.result()
 
     print(f"Всего извлечено {total_frames} кадров из {len(video_files)} видео.")
+
+
+if __name__ == "__main__":
+    input_directory = "data/videos"  # Директория с исходными видео
+    output_directory = "data/frames"  # Директория для сохранения кадров
+
+    process_video_directory(
+        input_directory,
+        output_directory,
+        frame_interval=2,
+        max_frames=1000,
+        num_workers=4,
+    )
