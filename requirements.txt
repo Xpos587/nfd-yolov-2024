@@ -1,4 +1,5 @@
 # WARNING НУЖНО ИСПОЛЬЗОВАТЬ PYTHON 3.10.X WARNING
 super-gradients
+pycocotools
 opencv-python
 ipykernel

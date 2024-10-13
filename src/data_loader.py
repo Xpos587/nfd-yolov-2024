@@ -58,16 +58,23 @@ class YOLODataset(Dataset):
 
 
 def collate_fn(batch):
-    images, targets = [], []
-    for img, lbl in batch:
-        images.append(torch.tensor(img, dtype=torch.float32))
-        if len(lbl) > 0:
-            targets.append(torch.tensor(lbl, dtype=torch.float32))
+    images = []
+    targets = []
+    for img, target in batch:
+        images.append(
+            torch.tensor(img, dtype=torch.float32)
+        )  # Преобразуем изображения в тензоры
+        if len(target) > 0:
+            # Преобразуем метки в тензоры и добавляем индекс изображения
+            target_with_index = torch.cat(
+                (torch.zeros((len(target), 1)), torch.tensor(target)), dim=1
+            )
+            targets.append(target_with_index)
         else:
-            targets.append(
-                torch.empty((0, 5), dtype=torch.float32)
-            )  # Пустая метка
-    images = torch.stack(images)
+            # Если метки пусты, создаем пустой тензор с нужной формой
+            targets.append(torch.empty((0, 6), dtype=torch.float32))
+    images = torch.stack(images, 0)
+    targets = torch.cat(targets, 0)  # Объединяем все метки в один тензор
     return images, targets
 
 

@@ -11,5 +11,6 @@ dependencies:
   - pip
   - pip:
       - super-gradients
+      - pycocotools
       - opencv-python
       - ipykernel

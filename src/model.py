@@ -5,7 +5,6 @@ from super_gradients.training.metrics import DetectionMetrics_050
 from super_gradients.training.models.detection_models.pp_yolo_e import (
     PPYoloEPostPredictionCallback,
 )
-from super_gradients.training.utils import compute_mAP
 
 
 def load_model(num_classes=2, pretrained=True):
@@ -18,32 +17,48 @@ def load_model(num_classes=2, pretrained=True):
 
 
 def train_model(train_loader, val_loader, num_classes=2, epochs=100, lr=0.001):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model = models.get(
         "yolo_nas_l", num_classes=num_classes, pretrained_weights="coco"
-    )
+    ).to(device)
 
     trainer = Trainer(
         experiment_name="aircraft_detection", ckpt_root_dir="models"
     )
 
+    post_prediction_callback = PPYoloEPostPredictionCallback(
+        score_threshold=0.1,
+        nms_threshold=0.6,
+        nms_top_k=1000,
+        max_predictions=300,
+    )
+
     trainer.train(
         model=model,
         training_params={
-            "epochs": epochs,
-            "lr": lr,
+            "max_epochs": epochs,
+            "lr_mode": "StepLRScheduler",
+            "lr_updates": [70, 90],
+            "lr_decay_factor": 0.1,
+            "initial_lr": lr,
+            "loss": PPYoloELoss(num_classes=num_classes),
             "optimizer": "Adam",
-            "loss": PPYoloELoss(),
+            "optimizer_params": {},
             "train_metrics_list": [
                 DetectionMetrics_050(
-                    post_prediction_callback=PPYoloEPostPredictionCallback()
+                    num_cls=num_classes,
+                    post_prediction_callback=post_prediction_callback,
                 )
             ],
             "valid_metrics_list": [
                 DetectionMetrics_050(
-                    post_prediction_callback=PPYoloEPostPredictionCallback()
+                    num_cls=num_classes,
+                    post_prediction_callback=post_prediction_callback,
                 )
             ],
             "metric_to_watch": "mAP@0.50",
+            "device": device,
         },
         train_loader=train_loader,
         valid_loader=val_loader,
@@ -63,37 +78,39 @@ def load_trained_model(path, num_classes=2):
     return model
 
 
-def evaluate_model(model, test_loader):
+def evaluate_model(model, test_loader, num_classes=2):
     """
     Оценка модели на тестовом наборе данных с использованием метрики mAP@0.50.
 
     :param model: Обученная модель YOLO NAS.
     :param test_loader: DataLoader для тестового набора данных.
+    :param num_classes: Количество классов в модели.
     :return: Вычисленное значение mAP@0.50.
     """
     model.eval()  # Переключение модели в режим оценки
-    all_detections = []
-    all_targets = []
+
+    post_prediction_callback = PPYoloEPostPredictionCallback(
+        score_threshold=0.1,
+        nms_threshold=0.6,
+        nms_top_k=1000,
+        max_predictions=300,
+    )
+
+    # Инициализация метрики
+    metric = DetectionMetrics_050(
+        num_cls=num_classes, post_prediction_callback=post_prediction_callback
+    )
 
     with torch.no_grad():  # Отключение вычисления градиентов
         for images, targets in test_loader:
+            images = images.to(model.device)
             outputs = model(images)
 
-            # Преобразование выходных данных модели в нужный формат
-            detections = outputs["pred"][
-                0
-            ]  # Предполагается, что это тензор формы (N, 6), где N - количество обнаружений
+            # Обновление метрики
+            metric.update(outputs, targets)
 
-            # Разделение детекций на боксы, скоры и классы
-            boxes = detections[:, :4]
-            scores = detections[:, 4]
-            labels = detections[:, 5]
+    # Вычисление финального значения метрики
+    results = metric.compute()
 
-            all_detections.append(
-                {"boxes": boxes, "scores": scores, "labels": labels}
-            )
-            all_targets.append(targets)
-
-    # Вычисление mAP@0.50 с использованием функции из super_gradients
-    mAP = compute_mAP(all_targets, all_detections, iou_threshold=0.50)
-    return mAP
+    # Возвращаем значение mAP@0.50
+    return results["mAP@0.50"]
