@@ -12,5 +12,4 @@ dependencies:
   - pip:
       - super-gradients
       - opencv-python
-      - numpy
       - ipykernel
